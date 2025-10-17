@@ -1,0 +1,202 @@
+openapi: 3.0.3
+info:
+  title: iask_me Audio Processing API
+  description: >
+    **iask_me** es una API para procesamiento de audios con inteligencia artificial generativa.
+    Usa el modelo **OpenAI Whisper** para transcripción automática y modelos generativos para
+    traducción y resumen del contenido de audio.
+  version: 1.0.0
+  contact:
+    name: Equipo iask_me
+    email: soporte@iaskme.ai
+
+servers:
+  - url: https://api.iaskme.ai/v1
+    description: Servidor principal de producción
+  - url: http://localhost:8000
+    description: Servidor local de desarrollo
+
+tags:
+  - name: Upload
+    description: Subida de archivos de audio
+  - name: Transcription
+    description: Transcripción de audio usando Whisper
+  - name: Translation
+    description: Traducción generativa de transcripciones
+  - name: Summarization
+    description: Generación de resumen automático
+  - name: Jobs
+    description: Consulta del estado de procesamiento
+
+paths:
+  /upload:
+    post:
+      tags: [Upload]
+      summary: Subir un archivo de audio
+      description: >
+        Permite subir un archivo de audio (MP3, WAV, FLAC...) para su procesamiento.
+        Devuelve un `job_id` para hacer seguimiento del proceso.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Archivo de audio a subir
+      responses:
+        '201':
+          description: Archivo recibido correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    example: "a7f5c1e3-9b2d-4e8a-8c6f-ef1d1d3a9a1c"
+
+  /transcribe/{job_id}:
+    post:
+      tags: [Transcription]
+      summary: Transcribir audio con Whisper
+      description: >
+        Usa el modelo **OpenAI Whisper** para transcribir el contenido del audio asociado al `job_id`.
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transcripción generada correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  model:
+                    type: string
+                    example: "whisper-1"
+                  language:
+                    type: string
+                    example: "es"
+                  text:
+                    type: string
+                    example: "Bienvenidos al episodio sobre inteligencia artificial..."
+        '404':
+          description: No se encontró el job indicado
+
+  /translate/{job_id}:
+    post:
+      tags: [Translation]
+      summary: Traducir la transcripción del audio
+      description: >
+        Traduce la transcripción generada por Whisper al idioma especificado.
+        Usa un modelo generativo de lenguaje compatible con la API de OpenAI.
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: target_lang
+          schema:
+            type: string
+            example: "en"
+          description: Código del idioma destino (ISO-639-1)
+      responses:
+        '200':
+          description: Traducción generada correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  target_lang:
+                    type: string
+                    example: "en"
+                  translated_text:
+                    type: string
+                    example: "Welcome to the episode on artificial intelligence..."
+        '404':
+          description: Job no encontrado
+
+  /summarize/{job_id}:
+    post:
+      tags: [Summarization]
+      summary: Generar un resumen del contenido de audio
+      description: >
+        Genera un resumen del texto transcrito usando un modelo generativo como GPT-4.
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Resumen generado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  summary:
+                    type: string
+                    example: "El audio trata sobre el impacto de la IA generativa en el futuro del trabajo."
+        '404':
+          description: Job no encontrado
+
+  /jobs/{job_id}:
+    get:
+      tags: [Jobs]
+      summary: Consultar el estado de un procesamiento
+      description: >
+        Permite consultar el estado actual del procesamiento (pendiente, en curso, completado, error).
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Estado del job
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, processing, completed, failed]
+                    example: "completed"
+                  stage:
+                    type: string
+                    example: "summarization"
+        '404':
+          description: Job no encontrado
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - ApiKeyAuth: []
